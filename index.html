@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宿舍趣味辈分图</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #ff6b6b;
+            --secondary: #4ecdc4;
+            --accent: #ffe66d;
+            --dark: #2c3e50;
+            --light: #f7f9fc;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-family: 'Ma Shan Zheng', cursive;
+            color: #fff;
+            text-align: center;
+            font-size: 3rem;
+            text-shadow: 3px 3px 0 #ff6b6b, 6px 6px 0 #4ecdc4;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #ffe66d;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .tree-container {
+            position: relative;
+            min-height: 400px;
+            background: linear-gradient(to bottom, #f0f9ff, #e0f2fe);
+            border-radius: 15px;
+            padding: 20px;
+            overflow: auto;
+        }
+        
+        .member-node {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 20px;
+            margin: 10px;
+            background: linear-gradient(135deg, var(--primary), #ff8e8e);
+            border-radius: 15px;
+            color: white;
+            cursor: grab;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+            min-width: 100px;
+        }
+        
+        .member-node:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 25px rgba(255,107,107,0.6);
+        }
+        
+        .member-node:active {
+            cursor: grabbing;
+        }
+        
+        .member-node.dragging {
+            opacity: 0.5;
+            transform: scale(0.9);
+        }
+        
+        .member-node.drag-over {
+            background: linear-gradient(135deg, var(--secondary), #7ee8e0);
+            box-shadow: 0 10px 25px rgba(78,205,196,0.6);
+        }
+        
+        .member-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+        
+        .member-rank {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        
+        .member-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        
+        .member-actions button {
+            padding: 3px 8px;
+            font-size: 0.7rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-edit { background: #4ecdc4; color: white; }
+        .btn-edit:hover { background: #3dbdb5; }
+        
+        .btn-delete { background: #ff6b6b; color: white; }
+        .btn-delete:hover { background: #ff5252; }
+        
+        .btn-unlink { background: #95a5a6; color: white; }
+        .btn-unlink:hover { background: #7f8c8d; }
+        
+        .btn-add {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(78,205,196,0.4);
+        }
+        
+        .btn-add:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(78,205,196,0.6);
+        }
+        
+        .btn-export {
+            background: linear-gradient(135deg, #ffe66d, #ffbe0b);
+            color: #333;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(255,230,109,0.4);
+            font-weight: bold;
+        }
+        
+        .btn-export:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255,230,109,0.6);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        
+        .hierarchy-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(to right, #ffecd2, #fcb69f);
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        
+        .hierarchy-item {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .hierarchy-item .rank-num {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .hierarchy-item .rank-name {
+            color: var(--dark);
+        }
+        
+        .hierarchy-item .rank-title {
+            font-size: 0.8rem;
+            color: #888;
+            font-family: 'Ma Shan Zheng', cursive;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            animation: popIn 0.3s ease;
+        }
+        
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        .modal-content h2 {
+            color: var(--dark);
+            margin-top: 0;
+        }
+        
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+        
+        .modal-content input:focus {
+            outline: none;
+            border-color: var(--secondary);
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .modal-buttons button {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .btn-confirm {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .btn-cancel {
+            background: #ddd;
+            color: #333;
+        }
+        
+        .emoji-decoration {
+            position: absolute;
+            font-size: 1.5rem;
+        }
+        
+        .instructions {
+            background: linear-gradient(135deg, #ffecd2, #fcb69f);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .instructions p {
+            margin: 5px 0;
+            color: #333;
+        }
+        
+        .orphan-node {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 15px;
+            margin: 8px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border-radius: 12px;
+            color: white;
+            cursor: grab;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(251, 191, 36, 0.4);
+        }
+        
+        .orphan-node:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(251, 191, 36, 0.6);
+        }
+        
+        .drag-hint {
+            display: inline-block;
+            background: #ffe66d;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            color: #333;
+            margin-left: 10px;
+        }
+        
+        /* 父子关系连接线样式 */
+        .connection-line {
+            position: absolute;
+            background: #ccc;
+            height: 2px;
+        }
+        
+        /* 导入/导出区域 */
+        .io-section {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        /* 特效 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .shake {
+            animation: shake 0.3s ease;
+        }
+        
+        @keyframes celebrate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        .celebrate {
+            animation: celebrate 0.5s ease;
+        }
+        
+        .drop-zone-hint {
+            border: 3px dashed var(--secondary);
+            background: rgba(78,205,196,0.1);
+        }
+        
+        /* 拖拽区域视觉反馈 */
+        .drop-zone-upper {
+            border-top: 4px solid #4ecdc4 !important;
+            background: linear-gradient(to bottom, rgba(78,205,196,0.3), linear-gradient(#ff6b6b, #ff8e8e)) !important;
+            position: relative;
+        }
+        
+        .drop-zone-upper::before {
+            content: '👆 认爹';
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #4ecdc4;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            z-index: 10;
+            animation: bounce 0.5s ease infinite;
+        }
+        
+        .drop-zone-lower {
+            border-bottom: 4px solid #ffe66d !important;
+            background: linear-gradient(to top, rgba(255,230,109,0.3), linear-gradient(#ff6b6b, #ff8e8e)) !important;
+            position: relative;
+        }
+        
+        .drop-zone-lower::after {
+            content: '👇 拜儿';
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffe66d;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            z-index: 10;
+            animation: bounce 0.5s ease infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-5px); }
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .member-node { min-width: 80px; padding: 10px 15px; }
+            .controls { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 宿舍辈分图</h1>
+        <p class="subtitle">大学宿舍的搞笑江湖辈分，看看谁是真正的"爹"！</p>
+        
+        <div class="card" id="exportArea">
+            <div class="instructions">
+                <p>👆 <strong>拖拽成员</strong> 到另一个成员身上，设置父子关系</p>
+                <p>💡 <strong>提示</strong>: 一个人可以是多个人的"爹"，但只能有一个"亲爹"</p>
+            </div>
+            
+            <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                <div style="flex:2; min-width:300px;">
+                    <div class="tree-container" id="treeContainer">
+                        <!-- 成员节点将在这里渲染 -->
+                    </div>
+                </div>
+                <div style="flex:1; min-width:250px;">
+                    <div class="tree-container" id="orphansContainer" style="background: linear-gradient(to bottom, #fef3c7, #fde68a); min-height:200px;">
+                        <h3 style="text-align:center; color:#92400e; margin:10px 0;">🌱 单身成员</h3>
+                        <p style="text-align:center; color:#92400e; font-size:0.9rem; margin-bottom:15px;">还没确定父子关系~</p>
+                        <div id="orphansList"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hierarchy-display" id="hierarchyDisplay">
+                <!-- 辈分排名将在这里显示 -->
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-add" onclick="showAddModal()">➕ 添加成员</button>
+            <button class="btn-export" onclick="exportImage()">📸 导出图片</button>
+            <button class="btn-export" onclick="exportPDF()">📄 导出PDF</button>
+            <button class="btn-secondary" onclick="exportData()">💾 导出数据</button>
+            <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 导入数据</button>
+            <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+            <button class="btn-secondary" onclick="resetData()">🔄 重置数据</button>
+            <button class="btn-secondary" onclick="shuffleAll()">🔀 随机排辈</button>
+        </div>
+    </div>
+    
+    <!-- 添加/编辑成员弹窗 -->
+    <div class="modal" id="memberModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">添加成员</h2>
+            <input type="text" id="memberNameInput" placeholder="请输入成员名称" maxlength="10">
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn-confirm" onclick="saveMember()">确定</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 提示信息 -->
+    <div id="toast" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg, #667eea, #764ba2); color:white; padding:15px 30px; border-radius:25px; z-index:2000; box-shadow:0 5px 20px rgba(0,0,0,0.3); font-size:1rem;">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // 默认数据
+        const defaultMembers = [
+            { id: 'member1', name: '小泽' },
+            { id: 'member2', name: '小浩' },
+            { id: 'member3', name: '小王' },
+            { id: 'member4', name: '小李' }
+        ];
+        
+        const defaultRelationships = [
+            { parentId: 'member1', childId: 'member2' }, // 小泽是小浩的爹
+            { parentId: 'member2', childId: 'member3' }, // 小浩是小王的爹
+            { parentId: 'member3', childId: 'member4' }  // 小王是小李的爹
+        ];
+        
+        // 状态
+        let members = [];
+        let relationships = [];
+        let editingMemberId = null;
+        let draggedMemberId = null;
+        
+        // 初始化
+        function init() {
+            loadFromLocalStorage();
+            render();
+        }
+        
+        // 从本地存储加载
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('dormTreeData');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    members = data.members || [];
+                    relationships = data.relationships || [];
+                } catch (e) {
+                    resetToDefault();
+                }
+            } else {
+                resetToDefault();
+            }
+        }
+        
+        // 重置为默认数据
+        function resetToDefault() {
+            members = JSON.parse(JSON.stringify(defaultMembers));
+            relationships = JSON.parse(JSON.stringify(defaultRelationships));
+            saveToLocalStorage();
+        }
+        
+        // 保存到本地存储
+        function saveToLocalStorage() {
+            localStorage.setItem('dormTreeData', JSON.stringify({ members, relationships }));
+        }
+        
+        // 重置数据
+        function resetData() {
+            if (confirm('确定要重置为默认数据吗？所有自定义内容将被清除！')) {
+                resetToDefault();
+                render();
+                showToast('🔄 好啦，回到最初的样子~');
+            }
+        }
+        
+        // 随机排辈
+        function shuffleAll() {
+            if (members.length < 2) {
+                showToast('🤔 至少要有2个人才能排辈分~');
+                return;
+            }
+            
+            // 随机打乱成员顺序
+            const shuffled = [...members].sort(() => Math.random() - 0.5);
+            
+            // 清除所有关系，重新随机生成
+            relationships = [];
+            
+            // 随机生成一条链状关系：第i个人是第i+1个人的父亲
+            for (let i = 0; i < shuffled.length - 1; i++) {
+                relationships.push({
+                    parentId: shuffled[i].id,
+                    childId: shuffled[i + 1].id
+                });
+            }
+            
+            render();
+            showToast('🔀 辈分已经随机重新排过了！');
+        }
+        
+        // 计算辈分排名（基于BFS/DFS计算层级）
+        function calculateHierarchy() {
+            const hierarchy = {};
+            const childrenCount = {};
+            
+            // 初始化
+            members.forEach(m => {
+                hierarchy[m.id] = { member: m, level: 0, children: [] };
+                childrenCount[m.id] = 0;
+            });
+            
+            // 计算每个节点的子节点数量
+            relationships.forEach(r => {
+                if (childrenCount[r.parentId] !== undefined) {
+                    childrenCount[r.parentId]++;
+                }
+            });
+            
+            // 找到根节点（没有父亲的人）
+            const childIds = new Set(relationships.map(r => r.childId));
+            const roots = members.filter(m => !childIds.has(m.id));
+            
+            // BFS计算层级
+            const queue = roots.map(r => ({ id: r.id, level: 0 }));
+            const visited = new Set();
+            
+            while (queue.length > 0) {
+                const { id, level } = queue.shift();
+                if (visited.has(id)) continue;
+                visited.add(id);
+                
+                if (hierarchy[id]) {
+                    hierarchy[id].level = level;
+                }
+                
+                // 找到所有孩子
+                const children = relationships
+                    .filter(r => r.parentId === id)
+                    .map(r => r.childId);
+                
+                children.forEach(childId => {
+                    if (!visited.has(childId) && hierarchy[childId]) {
+                        queue.push({ id: childId, level: level + 1 });
+                    }
+                });
+            }
+            
+            // 添加子节点信息
+            relationships.forEach(r => {
+                if (hierarchy[r.parentId]) {
+                    hierarchy[r.parentId].children.push(r.childId);
+                }
+            });
+            
+            return hierarchy;
+        }
+        
+        // 渲染
+        function render() {
+            renderTree();
+            renderOrphans();
+            renderHierarchy();
+            saveToLocalStorage();
+        }
+        
+        // 渲染树形结构
+        function renderTree() {
+            const container = document.getElementById('treeContainer');
+            const hierarchy = calculateHierarchy();
+            
+            // 排除单身成员（没有父子关系的人）
+            const orphanIds = new Set(members.filter(m => {
+                const hasParent = relationships.some(r => r.childId === m.id);
+                const hasChild = relationships.some(r => r.parentId === m.id);
+                return !hasParent && !hasChild;
+            }).map(m => m.id));
+            
+            // 过滤掉单身成员
+            const filteredHierarchy = {};
+            Object.entries(hierarchy).forEach(([id, data]) => {
+                if (!orphanIds.has(id)) {
+                    filteredHierarchy[id] = data;
+                }
+            });
+            
+            // 按层级分组
+            const levels = {};
+            Object.values(filteredHierarchy).forEach(h => {
+                if (!levels[h.level]) levels[h.level] = [];
+                levels[h.level].push(h);
+            });
+            
+            let html = '';
+            
+            // 渲染每个层级
+            Object.keys(levels).sort((a, b) => a - b).forEach(level => {
+                html += `<div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap; margin:20px 0;">`;
+                levels[level].forEach(h => {
+                    const titles = ['', '爷爷', '父亲', '儿子', '孙子', '曾孙', '玄孙'];
+                    const title = titles[Math.min(h.level, titles.length - 1)] || `第${h.level}代`;
+                    const emojis = ['', '👴', '👨', '👦', '👶', '🧒', '👶'];
+                    
+                    html += `
+                        <div class="member-node" 
+                             draggable="true"
+                             data-id="${h.member.id}"
+                             ondragstart="handleDragStart(event)"
+                             ondragend="handleDragEnd(event)"
+                             ondragover="handleDragOver(event)"
+                             ondragleave="handleDragLeave(event)"
+                             ondrop="handleDrop(event)">
+                            <span class="emoji-decoration" style="top:-10px;right:-10px;">${emojis[Math.min(h.level, emojis.length - 1)]}</span>
+                            <div class="member-name">${h.member.name}</div>
+                            <div class="member-actions">
+                                ${h.level > 0 ? `<button class="btn-unlink" onclick="unlinkRelation('${h.member.id}')" title="断开父子关系">🔗</button>` : ''}
+                                <button class="btn-edit" onclick="editMember('${h.member.id}')">✏️</button>
+                                <button class="btn-delete" onclick="deleteMember('${h.member.id}')">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+                
+                // 添加层级间的连接（简化版）
+                if (level < Object.keys(levels).length - 1) {
+                    const nextLevel = parseInt(level) + 1;
+                    if (levels[nextLevel] && levels[nextLevel].length > 0) {
+                        html += `<div style="text-align:center; color:#999; font-size:20px;">⬇️</div>`;
+                    }
+                }
+            });
+            
+            container.innerHTML = html || '<p style="text-align:center;color:#999;">请点击"添加成员"开始</p>';
+        }
+        
+        // 渲染单身成员
+        function renderOrphans() {
+            const container = document.getElementById('orphansList');
+            
+            // 找到没有父子关系的人
+            const orphans = members.filter(m => {
+                const hasParent = relationships.some(r => r.childId === m.id);
+                const hasChild = relationships.some(r => r.parentId === m.id);
+                return !hasParent && !hasChild;
+            });
+            
+            if (orphans.length === 0) {
+                container.innerHTML = '<p style="text-align:center;color:#92400e;">大家都已找到组织了~</p>';
+                return;
+            }
+            
+            let html = '<div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">';
+            orphans.forEach(m => {
+                html += `
+                    <div class="orphan-node" 
+                         draggable="true"
+                         data-id="${m.id}"
+                         ondragstart="handleDragStart(event)"
+                         ondragend="handleDragEnd(event)"
+                         ondragover="handleDragOver(event)"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event)">
+                        <div class="member-name">${m.name}</div>
+                        <div class="member-actions">
+                            <button class="btn-edit" onclick="editMember('${m.id}')">✏️</button>
+                            <button class="btn-delete" onclick="deleteMember('${m.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        // 渲染辈分排名
+        function renderHierarchy() {
+            const container = document.getElementById('hierarchyDisplay');
+            const hierarchy = calculateHierarchy();
+            
+            // 按层级排序
+            const sorted = Object.values(hierarchy).sort((a, b) => b.level - a.level);
+            
+            const rankTitles = ['掌门', '长老', '堂主', '弟子', '新人', '萌新'];
+            
+            let html = '';
+            sorted.forEach((h, index) => {
+                const title = rankTitles[Math.min(h.level, rankTitles.length - 1)] || `第${h.level}代`;
+                const emoji = ['', '🏆', '🥈', '🥉', '🎖️', '⭐', '✨'][Math.min(index + 1, 6)];
+                
+                html += `
+                    <div class="hierarchy-item">
+                        <div class="rank-num">${index + 1}</div>
+                        <div class="rank-name">${h.member.name}</div>
+                        <div class="rank-title">${title}</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html || '<p style="color:#666;">暂无成员</p>';
+        }
+        
+        // 拖拽处理
+        let dropZone = null;
+        let dropPosition = null; // 'upper' or 'lower'
+        
+        function handleDragStart(e) {
+            draggedMemberId = e.target.closest('.member-node').dataset.id;
+            e.target.closest('.member-node').classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedMemberId);
+        }
+        
+        function handleDragEnd(e) {
+            e.target.closest('.member-node')?.classList.remove('dragging');
+            document.querySelectorAll('.member-node').forEach(el => {
+                el.classList.remove('drag-over', 'drop-zone-upper', 'drop-zone-lower');
+            });
+            dropZone = null;
+            dropPosition = null;
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            const target = e.target.closest('.member-node');
+            if (!target || target.dataset.id === draggedMemberId) return;
+            
+            // 计算鼠标在目标元素中的相对位置
+            const rect = target.getBoundingClientRect();
+            const relativeY = e.clientY - rect.top;
+            const height = rect.height;
+            
+            // 上半部分 vs 下半部分
+            const isUpper = relativeY < height / 2;
+            dropPosition = isUpper ? 'upper' : 'lower';
+            
+            // 移除之前的样式
+            document.querySelectorAll('.member-node').forEach(el => {
+                el.classList.remove('drag-over', 'drop-zone-upper', 'drop-zone-lower');
+            });
+            
+            // 添加新样式
+            target.classList.add('drag-over');
+            target.classList.add(isUpper ? 'drop-zone-upper' : 'drop-zone-lower');
+            
+            dropZone = target.dataset.id;
+        }
+        
+        function handleDragLeave(e) {
+            const target = e.target.closest('.member-node');
+            if (target) {
+                target.classList.remove('drag-over', 'drop-zone-upper', 'drop-zone-lower');
+            }
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            const target = e.target.closest('.member-node');
+            if (!target || !dropZone) return;
+            
+            const targetId = target.dataset.id;
+            if (targetId === draggedMemberId) {
+                showToast('😅 自己不能和自己建立关系啦~');
+                return;
+            }
+            
+            // 根据拖拽位置决定关系：上半部分=成为父亲，下半部分=成为儿子
+            const becomeParent = dropPosition === 'upper';
+            const parentId = becomeParent ? draggedMemberId : targetId;
+            const childId = becomeParent ? targetId : draggedMemberId;
+            
+            // 检查是否已经存在这个关系
+            const exists = relationships.some(r => r.parentId === parentId && r.childId === childId);
+            
+            if (exists) {
+                showToast('🤔 这层关系已经绑定了呢~');
+                return;
+            }
+            
+            // 检查是否会形成循环
+            if (wouldCreateCycle(parentId, childId)) {
+                showToast('😅 哈哈哈不行啊！这就变成"共轭父子"咯~ 🔄💕');
+                return;
+            }
+            
+            // 移除旧的父亲关系（如果目标已经有父亲）
+            relationships = relationships.filter(r => r.childId !== childId);
+            
+            // 添加新关系
+            relationships.push({ parentId, childId });
+            
+            render();
+            
+            const actionText = becomeParent ? '是' : '认了';
+            const roleText = becomeParent ? '爸爸' : '儿子';
+            const emoji = becomeParent ? '👨' : '👦';
+            showToast(`✨ ${getMemberName(parentId)} ${actionText}${getMemberName(childId)} 的${roleText}！${emoji}`);
+            
+            // 添加庆祝动画
+            setTimeout(() => {
+                const el = document.querySelector(`.member-node[data-id="${childId}"]`);
+                if (el) {
+                    el.classList.add('celebrate');
+                    setTimeout(() => el.classList.remove('celebrate'), 500);
+                }
+            }, 50);
+        }
+        
+        // 检查是否形成循环
+        function wouldCreateCycle(parentId, childId) {
+            // 检查是否parent是child的后代
+            const visited = new Set();
+            const queue = [childId];
+            
+            while (queue.length > 0) {
+                const current = queue.shift();
+                if (current === parentId) return true;
+                if (visited.has(current)) continue;
+                visited.add(current);
+                
+                relationships
+                    .filter(r => r.parentId === current)
+                    .forEach(r => queue.push(r.childId));
+            }
+            
+            return false;
+        }
+        
+        // 获取成员名称
+        function getMemberName(id) {
+            const member = members.find(m => m.id === id);
+            return member ? member.name : '未知';
+        }
+        
+        // 添加/编辑成员弹窗
+        function showAddModal() {
+            editingMemberId = null;
+            document.getElementById('modalTitle').textContent = '添加成员';
+            document.getElementById('memberNameInput').value = '';
+            document.getElementById('memberModal').classList.add('show');
+            document.getElementById('memberNameInput').focus();
+        }
+        
+        function editMember(id) {
+            const member = members.find(m => m.id === id);
+            if (!member) return;
+            
+            editingMemberId = id;
+            document.getElementById('modalTitle').textContent = '编辑成员';
+            document.getElementById('memberNameInput').value = member.name;
+            document.getElementById('memberModal').classList.add('show');
+            document.getElementById('memberNameInput').focus();
+        }
+        
+        function closeModal() {
+            document.getElementById('memberModal').classList.remove('show');
+        }
+        
+        function saveMember() {
+            const name = document.getElementById('memberNameInput').value.trim();
+            if (!name) {
+                showToast('🤔 嘿~名字还没填呢~');
+                document.getElementById('memberNameInput').classList.add('shake');
+                setTimeout(() => document.getElementById('memberNameInput').classList.remove('shake'), 300);
+                return;
+            }
+            
+            if (editingMemberId) {
+                // 编辑
+                const member = members.find(m => m.id === editingMemberId);
+                if (member) {
+                    member.name = name;
+                    showToast('✨ 改好了！');
+                }
+            } else {
+                // 添加
+                const newId = 'member' + Date.now();
+                members.push({ id: newId, name: name });
+                showToast(`🎉 ${name} 入驻宿舍啦！`);
+            }
+            
+            closeModal();
+            render();
+        }
+        
+        // 断开父子关系（同时断开与父亲和所有孩子的关系）
+        function unlinkRelation(id) {
+            const member = members.find(m => m.id === id);
+            if (!member) return;
+            
+            // 找到这个成员的父亲
+            const parentRel = relationships.find(r => r.childId === id);
+            if (!parentRel) {
+                showToast(`🤔 ${member.name} 没有老爸可以断开了~`);
+                return;
+            }
+            
+            const parent = members.find(m => m.id === parentRel.parentId);
+            const parentName = parent ? parent.name : '未知';
+            
+            // 找到这个成员的所有孩子
+            const children = relationships.filter(r => r.parentId === id);
+            const childNames = children.map(c => {
+                const child = members.find(m => m.id === c.childId);
+                return child ? child.name : '未知';
+            });
+            
+            let confirmMsg = `确定要断开 ${member.name} 和 ${parentName} 的父子关系吗？`;
+            if (childNames.length > 0) {
+                confirmMsg += `\n\n同时也会断开与 ${childNames.join('、')} 的关系~`;
+            }
+            
+            if (!confirm(confirmMsg)) return;
+            
+            // 移除与父亲的关系 AND 与所有孩子的关系
+            relationships = relationships.filter(r => 
+                !(r.parentId === parentRel.parentId && r.childId === id) &&  // 移除与父亲的关系
+                !(r.parentId === id)  // 移除与所有孩子的关系
+            );
+            
+            render();
+            
+            let msg = `🔗 ${member.name} 变成单身了！`;
+            if (childNames.length > 0) {
+                msg = `🔗 ${member.name} 和 ${parentName} 断绝父子关系，同时也离开了 ${childNames.join('、')}！`;
+            }
+            showToast(msg);
+        }
+        
+        // 删除成员
+        function deleteMember(id) {
+            const member = members.find(m => m.id === id);
+            if (!member) return;
+            
+            if (!confirm(`确定要删除 ${member.name} 吗？`)) return;
+            
+            // 删除成员及其所有关系
+            members = members.filter(m => m.id !== id);
+            relationships = relationships.filter(r => r.parentId !== id && r.childId !== id);
+            
+            render();
+            showToast(`👋 ${member.name} 搬走了~`);
+        }
+        
+        // 导出图片
+        function exportImage() {
+            const exportArea = document.getElementById('exportArea');
+            
+            showToast('📸 咔嚓~正在生成中...');
+            
+            html2canvas(exportArea, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `宿舍辈分图_${new Date().toLocaleDateString('zh-CN')}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                showToast('✨ 图片搞定！快去炫耀吧~');
+            }).catch(err => {
+                showToast('哎呀~导出好像出问题了:' + err.message);
+            });
+        }
+        
+        // 导出PDF
+        function exportPDF() {
+            const exportArea = document.getElementById('exportArea');
+            
+            showToast('📄 正在生成PDF...');
+            
+            const { jsPDF } = window.jspdf;
+            
+            html2canvas(exportArea, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = 210; // A4 width in mm
+                const pageHeight = 297; // A4 height in mm
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+                
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                let heightLeft = imgHeight;
+                let position = 0;
+                
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+                
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+                
+                pdf.save(`宿舍辈分图_${new Date().toLocaleDateString('zh-CN')}.pdf`);
+                showToast('✨ PDF搞定！快去炫耀吧~');
+            }).catch(err => {
+                showToast('哎呀~PDF导出好像出问题了:' + err.message);
+            });
+        }
+        
+        // 导出数据
+        function exportData() {
+            const data = { members, relationships };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `宿舍辈分数据_${new Date().toLocaleDateString('zh-CN')}.json`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('💾 存好了~');
+        }
+        
+        // 导入数据
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.members && data.relationships) {
+                        members = data.members;
+                        relationships = data.relationships;
+                        render();
+                        showToast('✨ 加载成功！');
+                    } else {
+                        showToast('🤔 这个格式好像不太对哦~');
+                    }
+                } catch (err) {
+                    showToast('哎呀~导入失败了:' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            
+            // 清空input以便重新选择同一文件
+            event.target.value = '';
+        }
+        
+        // 显示提示
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 2500);
+        }
+        
+        // 键盘事件
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+            if (e.key === 'Enter' && document.getElementById('memberModal').classList.contains('show')) {
+                saveMember();
+            }
+        });
+        
+        // 点击弹窗外部关闭
+        document.getElementById('memberModal').addEventListener('click', (e) => {
+            if (e.target.id === 'memberModal') closeModal();
+        });
+        
+        // 初始化
+        init();
+    </script>
+</body>
+</html>
